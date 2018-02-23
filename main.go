@@ -24,11 +24,12 @@ func main() {
         pkgname = os.Args[1]
     }
     
-    config, err := defaultConfig()
+    config, err := Config()
     if err != nil {
         Err(err)
         os.Exit(1)
     }
+    Info("Configuration:", config)
     
     pkg, err := getPackage(pkgname)
     if err != nil {
@@ -36,6 +37,7 @@ func main() {
         os.Exit(1)
     }
     Info("Got package:", AUR + pkg.URLPath)
+    
     pkgBuildDir := path.Join(config.BuildDir, pkg.Name)
     pkgSrcDir := path.Join(config.SrcDir, pkg.Name)
     if err = os.MkdirAll(pkgSrcDir, 0755); err != nil {

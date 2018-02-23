@@ -4,6 +4,8 @@ import (
     "io/ioutil"
     "path"
     "os"
+    
+    "github.com/BurntSushi/toml"
 )
 
 const (
@@ -13,26 +15,59 @@ const (
 //TODO: Configuration file
 type Configuration struct {
     // Set $SRCDEST to this before running makepkg
-    SrcDir string
+    SrcDir   string
     BuildDir string
 }
 
-// This guy creates a configuration based on default
-//  values. It also makes sure that the directories SrcDir
-//  and BuildDir exist.
-func defaultConfig() (self Configuration, err error) {
-    // Get the appropriate system config directory
-    var cachedir string
-    xdg_cache := os.Getenv("XDG_CACHE_HOME")
-    if xdg_cache == "" {
-        cachedir = path.Join(os.Getenv("HOME"), ".cache")
-    } else {
-        cachedir = xdg_cache
+// The default configuration location for yam is $XDG_CONFIG_HOME/yam.toml
+//  (preferred) or $HOME/.config/yam.toml.
+func configFromFile() (self Configuration, err error) {
+    configfile := path.Join(xdgDir("XDG_CONFIG_HOME", ".config"), "yam.toml")
+    Info("Config file location:", configfile)
+    
+    //TODO: Complain if there is a config file but we can't access...
+    if _, statErr := os.Stat(configfile); statErr == nil {
+        _, err = toml.DecodeFile(configfile, &self)
+    }
+    return
+}
+
+// Get a configuration for yam. This returns a default config
+//  plus whatever values where specified in the config file
+func Config() (self Configuration, err error) {
+    self, err = configFromFile()
+    if err != nil { return }
+    err = self.fillDefault()
+    return
+}
+
+// Fills all values in the Configuration sturct with their defaults
+//  if they have not been changed from their zero values
+func (self *Configuration) fillDefault() (err error) {
+    if self.SrcDir == "" {
+        srcdir := path.Join(xdgDir("XDG_CACHE_HOME", ".cache"), "yam")
+        if err = os.MkdirAll(self.SrcDir, 0755); err != nil { return }
+        self.SrcDir = srcdir
     }
     
-    self.SrcDir = path.Join(cachedir, "yam")
-    if err = os.MkdirAll(self.SrcDir, 0755); err != nil { return }
-    
-    self.BuildDir, err = ioutil.TempDir("", "yam")
+    if self.BuildDir == "" {
+        // nasty workaround
+        var tmpdir string
+        tmpdir, err = ioutil.TempDir("", "yam")
+        if err != nil { return }
+        self.BuildDir = tmpdir
+    }
+    return
+}
+
+// Get an XDG dir. If the variable envV is not set, suffix
+//  path.Join'd with $HOME is used instead
+func xdgDir(envV, suffix string) (dir string) {
+    xdg := os.Getenv(envV)
+    if xdg == "" {
+        dir = path.Join(os.Getenv("HOME"), suffix)
+    } else {
+        dir = xdg
+    }
     return
 }
