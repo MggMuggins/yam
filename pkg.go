@@ -42,9 +42,24 @@ func downloadFile(url, dest string) error {
 
 // Download and unpack a PKGBUILD tarball into dest
 // (Should have a PKGBUILD in dest when complete)
-func getPkgbuild(pkg aur.Pkg, dest string) (err error) {
+func GetPkgbuild(pkg aur.Pkg, dest string) (err error) {
     tarball_name := path.Join(dest, pkg.Name + ".tar.gz")
     err = downloadFile(AUR + pkg.URLPath, tarball_name)
     if err != nil { return }
     return unpackTarball(tarball_name)
+}
+
+func GetPackage(pkgname string) (pkg aur.Pkg, err error) {
+    // Get package, check things
+    pkgs, err := aur.Search(pkgname)
+    if err != nil { return }
+    
+    for _, pkgopt := range pkgs {
+        if pkgopt.Name == pkgname {
+            pkg = pkgopt
+            return
+        }
+    }
+    err = errors.New("Package not found: " + pkgname)
+    return
 }

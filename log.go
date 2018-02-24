@@ -2,33 +2,28 @@ package main
 
 import (
     "fmt"
+    "log"
+    "os"
+    
     "github.com/mikkeloscar/aur"
     . "github.com/logrusorgru/aurora"
 )
 
-// Logging helper
+// Prefixes
 var (
-    err_p = Bold(Red("::"))
-    warn_p = Bold(Brown("::"))
-    info_p = Bold(Blue("::"))
-    ok_p = Bold(Green("::"))
+    bold_p = Bold(":: ")
+    err_p  = bold_p.Red()
+    warn_p = bold_p.Brown()
+    info_p = bold_p.Blue()
+    ok_p   = bold_p.Green()
 )
 
-func Err(msgs ...interface{}) (int, error) {
-    return fmt.Printf("%s%s\n", combine(err_p, msgs)...)
-}
-
-func Warn(msgs ...interface{}) (int, error) {
-    return fmt.Printf("%s%s\n", combine(warn_p, msgs)...)
-}
-
-func Info(msgs ...interface{}) (int, error) {
-    return fmt.Printf("%s%s\n", combine(info_p, msgs)...)
-}
-
-func Ok(msgs ...interface{}) (int, error) {
-    return fmt.Printf("%s%s\n", combine(ok_p, msgs)...)
-}
+var (
+    ErrLog  = log.New(os.Stderr, err_p .String(), 0)
+    WarnLog = log.New(os.Stdout, warn_p.String(), 0)
+    InfoLog = log.New(os.Stdout, info_p.String(), 0)
+    OkLog   = log.New(os.Stdout, ok_p  .String(), 0)
+)
 
 func PrintPkgs(pkgs []aur.Pkg) (bytes int, err error) {
     for _, pkg := range pkgs {
@@ -39,9 +34,6 @@ func PrintPkgs(pkgs []aur.Pkg) (bytes int, err error) {
             return
         }
     }
+    fmt.Printf("\n")
     return
-}
-
-func combine(pref interface{}, msgs []interface{}) []interface{} {
-    return append([]interface{}{pref}, msgs)
 }

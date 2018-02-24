@@ -1,75 +1,69 @@
 package main
 
 import (
-    "errors"
     "os"
     "os/exec"
     "path"
     
     "github.com/mikkeloscar/aur"
+    "github.com/jessevdk/go-flags"
 )
+
+var opts struct {
+    Update bool `short:"u" long:"update" description:"Update all installed AUR packages"`
+    Verbose bool `short:"v" long:"verbose" description:"Print more Debugging info"`
+}
 
 func main() {
     if os.Getuid() == 0 {
-        Err("Do not run as root.")
+        ErrLog.Println("Do not run as root.")
         os.Exit(1)
     }
     
-    //TODO: Real Arg parsing
-    var pkgname string
-    if len(os.Args) != 2 {
-        Err("Not enough arguments.")
-        os.Exit(1)
-    } else {
-        pkgname = os.Args[1]
-    }
+    pkgnames, err := flags.Parse(&opts)
     
     config, err := Config()
     if err != nil {
-        Err(err)
+        ErrLog.Println(err)
         os.Exit(1)
     }
-    Info("Configuration:", config)
+    if opts.Verbose { InfoLog.Printf("Configuration: %s\n", config) }
     
-    pkg, err := getPackage(pkgname)
-    if err != nil {
-        Err(err)
-        os.Exit(1)
+    // Get the packages first, that way we verify that everything is correct
+    //  before we actually start builds/installs
+    pkgs := []aur.Pkg{}
+    for _, pkgname := range pkgnames {
+        pkg, err := GetPackage(pkgname)
+        if err != nil {
+            ErrLog.Println(err)
+            os.Exit(1)
+        }
+        pkgs = append(pkgs, pkg)
+        if opts.Verbose { InfoLog.Printf("Got package: %s%s\n", AUR, pkg.URLPath) }
     }
-    Info("Got package:", AUR + pkg.URLPath)
     
-    pkgBuildDir := path.Join(config.BuildDir, pkg.Name)
-    pkgSrcDir := path.Join(config.SrcDir, pkg.Name)
-    if err = os.MkdirAll(pkgSrcDir, 0755); err != nil {
-        Err(err)
-        os.Exit(1)
-    }
+    InfoLog.Println("Packages to build and install:")
+    PrintPkgs(pkgs)
     
-    if err = getPkgbuild(pkg, config.BuildDir); err != nil {
-        Err(err)
-        os.Exit(1)
-    }
-    Info("Got PKGBUILD")
-    
-    if err = runMakePkg(pkgBuildDir, pkgSrcDir, "-si"); err != nil {
-        Err("makepkg:", err)
-        os.Exit(1)
-    }
-}
-
-func getPackage(pkgname string) (pkg aur.Pkg, err error) {
-    // Get package, check things
-    pkgs, err := aur.Search(pkgname)
-    if err != nil { return }
-    
-    for _, pkgopt := range pkgs {
-        if pkgopt.Name == pkgname {
-            pkg = pkgopt
-            return
+    for _, pkg := range pkgs {
+        
+        pkgBuildDir := path.Join(config.BuildDir, pkg.Name)
+        pkgSrcDir := path.Join(config.SrcDir, pkg.Name)
+        if err = os.MkdirAll(pkgSrcDir, 0755); err != nil {
+            ErrLog.Println(err)
+            os.Exit(1)
+        }
+        
+        if err = GetPkgbuild(pkg, config.BuildDir); err != nil {
+            ErrLog.Println(err)
+            os.Exit(1)
+        }
+        
+        if err = runMakePkg(pkgBuildDir, pkgSrcDir, "-si"); err != nil {
+            ErrLog.Printf("makepkg: %s\n", err)
+            os.Exit(1)
         }
     }
-    err = errors.New("Package not found: " + pkgname)
-    return
 }
 
 func runMakePkg(buildDir string, srcDir string, args ...string) error {
@@ -78,6 +72,7 @@ func runMakePkg(buildDir string, srcDir string, args ...string) error {
     srcdest := "SRCDEST=" + srcDir
     cmd.Env = []string{srcdest}
     cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-    Info("makepkg", args)
+    // Want to make sure this is printed
+    InfoLog.Printf("makepkg %s", args)
     return cmd.Run()
 }

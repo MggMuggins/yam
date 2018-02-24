@@ -23,11 +23,11 @@ type Configuration struct {
 //  (preferred) or $HOME/.config/yam.toml.
 func configFromFile() (self Configuration, err error) {
     configfile := path.Join(xdgDir("XDG_CONFIG_HOME", ".config"), "yam.toml")
-    Info("Config file location:", configfile)
     
     //TODO: Complain if there is a config file but we can't access...
     if _, statErr := os.Stat(configfile); statErr == nil {
         _, err = toml.DecodeFile(configfile, &self)
+        if opts.Verbose { InfoLog.Printf("Config file location: %s\n", configfile) }
     }
     return
 }

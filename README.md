@@ -1,7 +1,9 @@
 ## Yam
 Yet another AUR helper but without the pacman wrapping.
 
-This program is build on the idea that a source package manager and a binary package manager are two different things and operations that one can do with one inherently do not apply to the other.
+This program is build on the idea that a source package manager and a binary package manager are two different things and operations that apply to one inherently do not apply to the other.
+
+I need something incredibly simple to do AUR package management and this is the result.
 
 ## Goals
  - Provide easy access and installation of packages from the AUR
